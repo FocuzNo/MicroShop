@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\MicroShop.BuildingBlocks.Domain\MicroShop.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,54 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+*.nupkg
+*.snupkg
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+
+# JetBrains Rider and ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# Visual Studio Code
+.vscode/
+
+# Test and coverage output
+TestResults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# Logs and diagnostic output
+*.log
+*.pidb
+*.svclog
+*.scc
+
+# NCrunch
+*.ncrunch*
+_NCrunch_*
+
+# Local environment and secret overrides
+.env
+.env.*
+!.env.example
+*.local
+*.local.json
+
+# Local Docker Compose overrides
+docker-compose.override.local.yml
+
+# Operating system metadata
+Thumbs.db
+Desktop.ini
+.DS_Store

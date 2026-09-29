@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="MediatR" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\MicroShop.BuildingBlocks.Application\MicroShop.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\MicroShop.Contracts\MicroShop.Contracts.csproj" />
+    <ProjectReference Include="..\MicroShop.Catalog.Domain\MicroShop.Catalog.Domain.csproj" />
+  </ItemGroup>
+</Project>

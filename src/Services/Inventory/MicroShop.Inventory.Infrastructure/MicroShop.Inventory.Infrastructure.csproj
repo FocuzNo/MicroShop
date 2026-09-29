@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\MicroShop.BuildingBlocks.Domain\MicroShop.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\MicroShop.BuildingBlocks.Infrastructure\MicroShop.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Contracts\MicroShop.Contracts\MicroShop.Contracts.csproj" />
+    <ProjectReference Include="..\MicroShop.Inventory.Application\MicroShop.Inventory.Application.csproj" />
+    <ProjectReference Include="..\MicroShop.Inventory.Domain\MicroShop.Inventory.Domain.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\MicroShop.BuildingBlocks.Infrastructure\MicroShop.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\MicroShop.Inventory.Application\MicroShop.Inventory.Application.csproj" />
+    <ProjectReference Include="..\MicroShop.Inventory.Infrastructure\MicroShop.Inventory.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

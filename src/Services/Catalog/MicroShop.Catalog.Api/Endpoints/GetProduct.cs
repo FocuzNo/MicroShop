@@ -20,6 +20,13 @@ internal sealed class GetProduct : IEndpoint
                     cancellationToken);
 
                 return result.IsSuccess ? Results.Ok(result.Value) : ApiResults.Problem(result);
-            });
+            })
+            .WithName("GetProduct")
+            .WithTags("Products")
+            .WithSummary("Get product")
+            .WithDescription("Returns a Catalog product by identifier.")
+            .Produces<ProductResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 }

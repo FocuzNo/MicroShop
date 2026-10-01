@@ -12,7 +12,7 @@ internal sealed class UpdateInventory : IEndpoint
             "api/inventory/{productId:guid}",
             async (
                 Guid productId,
-                Request request,
+                UpdateInventoryRequest request,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
@@ -25,8 +25,16 @@ internal sealed class UpdateInventory : IEndpoint
                     cancellationToken);
 
                 return result.IsSuccess ? Results.NoContent() : ApiResults.Problem(result);
-            });
+            })
+            .WithName("UpdateInventory")
+            .WithTags("Inventory")
+            .WithSummary("Update inventory quantity")
+            .WithDescription("Sets the quantity of an existing inventory item to a non-negative value.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
-    internal sealed record Request(int Quantity);
+    internal sealed record UpdateInventoryRequest(int Quantity);
 }

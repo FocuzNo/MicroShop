@@ -11,7 +11,7 @@ internal sealed class CreateProduct : IEndpoint
         app.MapPost(
             "api/products",
             async (
-                Request request,
+                CreateProductRequest request,
                 ISender sender,
                 CancellationToken cancellationToken) =>
             {
@@ -26,12 +26,19 @@ internal sealed class CreateProduct : IEndpoint
                 return result.IsSuccess
                     ? Results.Created(
                         $"/api/products/{result.Value}",
-                        new { result.Value })
+                        new CreateProductResponse(result.Value))
                     : ApiResults.Problem(result);
-            });
+            })
+            .WithName("CreateProduct")
+            .WithTags("Products")
+            .WithSummary("Create product")
+            .WithDescription("Creates a Catalog product and persists its integration event through the transactional Outbox for asynchronous publication to Kafka.")
+            .Produces<CreateProductResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status500InternalServerError);
     }
 
-    internal sealed record Request(
+    internal sealed record CreateProductRequest(
         string Name,
         decimal Price);
 }

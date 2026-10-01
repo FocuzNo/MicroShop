@@ -124,6 +124,21 @@ Committing the offset first would allow a crash to lose the business change perm
 
 Requirements: .NET 10 SDK, Docker, and Docker Compose.
 
+PostgreSQL uses the pinned `postgres:18-alpine` image. Its named volumes mount at
+`/var/lib/postgresql`; PostgreSQL 18 stores its cluster under `18/docker` inside
+that mount. Mounting at the older `/var/lib/postgresql/data` path prevents this
+image from starting. Correcting the mount does not require deleting empty volumes.
+Existing database data from a different major version requires a planned upgrade,
+not simply changing the image tag or deleting the volume.
+
+The existing `appsettings.json` files configure Windows-hosted API development:
+Catalog connects to `localhost:5433/catalog`, and Inventory to
+`localhost:5434/inventory`. Compose overrides the same `ConnectionStrings:Database`
+key through `ConnectionStrings__Database`, using `catalog-db:5432/catalog` and
+`inventory-db:5432/inventory`. All database settings use the same development-only
+`postgres` user and password. A local database connection error is expected while
+the corresponding Docker database is stopped.
+
 ```powershell
 dotnet restore MicroShop.sln
 dotnet build MicroShop.sln
@@ -150,6 +165,18 @@ Stop containers and delete all MicroShop data:
 ```powershell
 docker compose down -v
 ```
+
+## API documentation
+
+| Service | ReDoc visual API reference | OpenAPI JSON machine-readable API contract |
+| --- | --- | --- |
+| Catalog | http://localhost:5001/docs | http://localhost:5001/openapi/v1.json |
+| Inventory | http://localhost:5002/docs | http://localhost:5002/openapi/v1.json |
+
+Both pages work in the normal Docker Compose environment; `/` redirects to `/docs`.
+ASP.NET Core generates the OpenAPI document from each service's Minimal API endpoints.
+ReDoc CE loads its standalone browser bundle from the official CDN, so viewing the
+visual reference requires internet access.
 
 ## Exercise the API
 

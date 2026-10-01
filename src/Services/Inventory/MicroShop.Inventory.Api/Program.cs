@@ -17,7 +17,8 @@ builder.Services
     .AddApplication()
     .AddInfrastructure(builder.Configuration)
     .AddEndpoints(typeof(GetInventory).Assembly)
-    .AddMicroShopObservability();
+    .AddMicroShopObservability()
+    .AddApiDocumentation("MicroShop Inventory API");
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
@@ -27,6 +28,7 @@ app.UseSerilogRequestLogging();
 app.MapEndpoints();
 app.MapHealthChecks("/health");
 app.MapPrometheusScrapingEndpoint("/metrics");
+app.MapApiDocumentation("MicroShop Inventory API");
 
 await app.Services.ApplyInventoryMigrationsAsync();
 await app.RunAsync();

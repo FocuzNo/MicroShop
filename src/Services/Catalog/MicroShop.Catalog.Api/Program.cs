@@ -1,5 +1,6 @@
 using MicroShop.BuildingBlocks.Infrastructure;
 using MicroShop.Catalog.Api.Endpoints;
+using MicroShop.Catalog.Api.Extensions;
 using MicroShop.Catalog.Application;
 using MicroShop.Catalog.Infrastructure;
 using OpenTelemetry.Metrics;
@@ -18,17 +19,19 @@ builder.Services
     .AddInfrastructure(builder.Configuration)
     .AddEndpoints(typeof(CreateProduct).Assembly)
     .AddMicroShopObservability()
-    .AddApiDocumentation("MicroShop Catalog API");
+    .AddSwaggerDocumentation();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
+
+app.UseSwaggerDocumentation();
+
 app.MapEndpoints();
 app.MapHealthChecks("/health");
 app.MapPrometheusScrapingEndpoint("/metrics");
-app.MapApiDocumentation("MicroShop Catalog API");
 
 await app.Services.ApplyCatalogMigrationsAsync();
 await app.RunAsync();

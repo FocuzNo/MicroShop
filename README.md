@@ -139,6 +139,13 @@ key through `ConnectionStrings__Database`, using `catalog-db:5432/catalog` and
 `postgres` user and password. A local database connection error is expected while
 the corresponding Docker database is stopped.
 
+Kafka has two listeners because clients use the broker addresses returned in Kafka
+metadata, not just the initial bootstrap address. Docker clients use the INTERNAL
+listener advertised as `kafka:9092`. Windows/Rider clients use the EXTERNAL listener
+advertised as `localhost:9094`, published on host port `9094`. Compose overrides
+`Kafka__BootstrapServers`; the local `appsettings.json` files use `localhost:9094`.
+The controller listener remains private on port `9093`.
+
 ```powershell
 dotnet restore MicroShop.sln
 dotnet build MicroShop.sln
@@ -154,6 +161,21 @@ Service URLs:
 - Prometheus: `http://localhost:9090`
 - Grafana: `http://localhost:3000` (`admin` / `admin`)
 
+To run the APIs from Rider or `dotnet run` against the Docker infrastructure,
+stop the Docker APIs first to avoid two Outbox processors sharing the same database:
+
+```powershell
+docker compose stop catalog-api inventory-api
+dotnet run --project src/Services/Catalog/MicroShop.Catalog.Api
+# In another terminal:
+dotnet run --project src/Services/Inventory/MicroShop.Inventory.Api
+```
+
+The launch profiles select `Development`, Catalog port `5101`, and Inventory port
+`5102`. Local Swagger URLs are `http://localhost:5101/swagger` and
+`http://localhost:5102/swagger`. Stop the local processes before returning to
+containerized execution with `docker compose start catalog-api inventory-api`.
+
 Stop containers while retaining named volumes:
 
 ```powershell
@@ -168,15 +190,15 @@ docker compose down -v
 
 ## API documentation
 
-| Service | ReDoc visual API reference | OpenAPI JSON machine-readable API contract |
+| Service | Swagger UI interactive API reference | OpenAPI JSON machine-readable API contract |
 | --- | --- | --- |
-| Catalog | http://localhost:5001/docs | http://localhost:5001/openapi/v1.json |
-| Inventory | http://localhost:5002/docs | http://localhost:5002/openapi/v1.json |
+| Catalog | http://localhost:5001/swagger | http://localhost:5001/swagger/v1/swagger.json |
+| Inventory | http://localhost:5002/swagger | http://localhost:5002/swagger/v1/swagger.json |
 
-Both pages work in the normal Docker Compose environment; `/` redirects to `/docs`.
-ASP.NET Core generates the OpenAPI document from each service's Minimal API endpoints.
-ReDoc CE loads its standalone browser bundle from the official CDN, so viewing the
-visual reference requires internet access.
+Both pages work in the normal Docker Compose environment, including `Production`;
+`/` redirects to `/swagger`. Swashbuckle generates one `v1` OpenAPI document from
+each service's Minimal API endpoints. Swagger UI includes **Try it out** for
+executing requests and serves its browser assets directly from the API.
 
 ## Exercise the API
 

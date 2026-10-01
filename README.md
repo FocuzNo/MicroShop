@@ -1,10 +1,19 @@
 # MicroShop
 
-MicroShop is a deliberately small .NET 10 microservices project for learning the complete path from an HTTP request to durable asynchronous processing:
+MicroShop is a compact backend pet project for managing a product catalog and inventory. Built with .NET 10, it consists of two independent services connected through Apache Kafka.
 
-`HTTP → CQRS → DDD → EF Core → PostgreSQL → Outbox → Kafka → Consumer Group → Inbox → PostgreSQL`
+Catalog manages product data. Inventory tracks stock quantities and creates an inventory item when a product is added to the catalog. Transactional Outbox and Inbox processing keep this asynchronous integration reliable and idempotent.
 
-It contains exactly two independently deployable business services. Catalog owns products; Inventory owns stock quantities. They share only an integration-event contract and technical building blocks. Neither service reads the other service's database.
+The scope is intentionally focused: product creation, product lookup, inventory lookup, and quantity updates. There is no frontend, authentication, or checkout flow.
+
+## Technology stack
+
+- **Backend:** .NET 10, ASP.NET Core Minimal API.
+- **Application:** Clean Architecture, DDD, CQRS, MediatR, FluentValidation.
+- **Persistence:** Entity Framework Core, PostgreSQL, database per service.
+- **Messaging:** Apache Kafka in KRaft mode, Confluent.Kafka, JSON integration contracts, Outbox and Inbox.
+- **Observability:** Serilog, OpenTelemetry metrics, Prometheus, Grafana.
+- **Tooling:** Docker Compose, multi-stage Docker builds, Swagger UI and OpenAPI via Swashbuckle.
 
 ## Architecture
 
@@ -44,19 +53,18 @@ Each service follows Clean Architecture:
 - **Infrastructure** implements EF Core persistence and Kafka integration.
 - **Api** is the Minimal API composition root and contains thin endpoint classes.
 
-The shared `MicroShop.Contracts` project contains only `ProductCreatedIntegrationEvent`. Domain entities are never put on Kafka.
+Services share integration contracts through `MicroShop.Contracts` and technical primitives through BuildingBlocks. They do not reference each other's implementation projects or access each other's database. Kafka messages contain integration contracts, not domain entities.
 
 ## Services and endpoints
 
-Catalog owns `Product` (`Id`, `Name`, `Price`, `CreatedAtUtc`):
+| Service | Method | Route | Operation |
+| --- | --- | --- | --- |
+| Catalog | POST | `/api/products` | Create a product |
+| Catalog | GET | `/api/products/{id}` | Get a product by ID |
+| Inventory | GET | `/api/inventory/{productId}` | Get inventory for a product |
+| Inventory | PUT | `/api/inventory/{productId}` | Set the quantity of an existing inventory item |
 
-- `POST /api/products`
-- `GET /api/products/{id}`
-
-Inventory owns `InventoryItem` (`Id`, `ProductId`, `Quantity`, `CreatedAtUtc`, `UpdatedAtUtc`):
-
-- `GET /api/inventory/{productId}`
-- `PUT /api/inventory/{productId}`
+Product names are required, and prices cannot be negative. Inventory quantities cannot be negative; each product has at most one inventory item. Newly created inventory items start with quantity `0`.
 
 Both services expose `/health` (including their PostgreSQL connectivity) and `/metrics`.
 
@@ -64,7 +72,7 @@ Both services expose `/health` (including their PostgreSQL connectivity) and `/m
 
 Minimal API endpoints create a command or query and send it through MediatR. FluentValidation runs in `ValidationBehavior`; endpoints do not invoke validators or repositories. Expected validation, not-found, and conflict failures use `Result`/`Result<T>` and map to Problem Details responses.
 
-`Product.Create`, `InventoryItem.Create`, and `InventoryItem.ChangeQuantity` protect domain invariants. Setters remain private, mapping is explicit, and no generic repository or AutoMapper is used.
+`Product.Create`, `InventoryItem.Create`, and `InventoryItem.ChangeQuantity` protect domain invariants. Entities encapsulate state changes; handlers coordinate domain behavior and persistence through explicit repository interfaces.
 
 ## Database per service
 
@@ -91,9 +99,9 @@ There are no cross-database queries or foreign keys. Each `DbContext` is its ser
 3. waits for Kafka delivery acknowledgement;
 4. sets `ProcessedAtUtc`, clears `Error`, and saves.
 
-A publish failure is logged and stored in `Error`; `ProcessedAtUtc` stays null so a later loop can retry.
+A publish failure is logged and stored in `Error`; the message remains unprocessed and is retried by a subsequent processing cycle.
 
-## Kafka concepts in this project
+## Messaging
 
 - **Producer:** Catalog's `KafkaProducer`, built with `ProducerBuilder<string, string>`.
 - **Topic:** the single topic is `catalog.product-created`.
@@ -104,7 +112,7 @@ A publish failure is logged and stored in `Error`; `ProcessedAtUtc` stays null s
 - **Offset:** a message's position inside one partition. Topic, partition, offset, key, event ID, and product ID are logged on consumption.
 - **Commit:** the consumer has `EnableAutoCommit = false` and calls `Commit` only after its database transaction succeeds.
 
-This is intentionally an **at-least-once** flow. A crash can happen after the database commit and before the Kafka offset commit. Kafka will then redeliver the event, which is why Inventory needs an Inbox rather than pretending business processing is exactly once.
+Delivery follows **at-least-once** semantics. A failure between database persistence and offset commit can cause redelivery. Inbox deduplication makes repeated processing safe; Kafka alone does not provide exactly-once business processing.
 
 ## Inbox and idempotency
 
@@ -112,54 +120,51 @@ This is intentionally an **at-least-once** flow. A crash can happen after the da
 
 On redelivery, the existing Inbox ID causes the business operation to be skipped; the consumer can safely commit that Kafka offset. A unique index on `inventory_items.product_id` supplies a second database-level duplicate guard.
 
-The important order is:
+Processing order:
 
 ```text
 Consume → check Inbox → save Inbox + Inventory → commit DB → commit Kafka offset
 ```
 
-Committing the offset first would allow a crash to lose the business change permanently.
+Saving the database transaction before committing the offset prevents an acknowledged message from being lost before its business change is persisted.
 
-## Run locally
+## Getting started
 
-Requirements: .NET 10 SDK, Docker, and Docker Compose.
+### Prerequisites
 
-PostgreSQL uses the pinned `postgres:18-alpine` image. Its named volumes mount at
-`/var/lib/postgresql`; PostgreSQL 18 stores its cluster under `18/docker` inside
-that mount. Mounting at the older `/var/lib/postgresql/data` path prevents this
-image from starting. Correcting the mount does not require deleting empty volumes.
-Existing database data from a different major version requires a planned upgrade,
-not simply changing the image tag or deleting the volume.
+- Docker with Docker Compose and Linux container support.
+- .NET 10 SDK for building or running the APIs outside Docker.
 
-The existing `appsettings.json` files configure Windows-hosted API development:
-Catalog connects to `localhost:5433/catalog`, and Inventory to
-`localhost:5434/inventory`. Compose overrides the same `ConnectionStrings:Database`
-key through `ConnectionStrings__Database`, using `catalog-db:5432/catalog` and
-`inventory-db:5432/inventory`. All database settings use the same development-only
-`postgres` user and password. A local database connection error is expected while
-the corresponding Docker database is stopped.
+Run all commands from the repository root.
 
-Kafka has two listeners because clients use the broker addresses returned in Kafka
-metadata, not just the initial bootstrap address. Docker clients use the INTERNAL
-listener advertised as `kafka:9092`. Windows/Rider clients use the EXTERNAL listener
-advertised as `localhost:9094`, published on host port `9094`. Compose overrides
-`Kafka__BootstrapServers`; the local `appsettings.json` files use `localhost:9094`.
-The controller listener remains private on port `9093`.
+### Start with Docker Compose
 
 ```powershell
-dotnet restore MicroShop.sln
-dotnet build MicroShop.sln
+docker compose config --quiet
 docker compose up -d --build
 docker compose ps
 docker compose logs -f catalog-api inventory-api kafka
 ```
 
-Service URLs:
+Compose starts both APIs, two PostgreSQL instances, Kafka, Prometheus, and Grafana on a shared Docker network. EF Core migrations are applied automatically when the APIs start.
 
-- Catalog: `http://localhost:5001`
-- Inventory: `http://localhost:5002`
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3000` (`admin` / `admin`)
+| Service | URL |
+| --- | --- |
+| Catalog API | [http://localhost:5001](http://localhost:5001) |
+| Inventory API | [http://localhost:5002](http://localhost:5002) |
+| Prometheus | [http://localhost:9090](http://localhost:9090) |
+| Grafana | [http://localhost:3000](http://localhost:3000) |
+
+The default local credentials are `postgres` / `postgres` for PostgreSQL and `admin` / `admin` for Grafana. This Compose configuration is intended for local use and is not a production deployment configuration.
+
+### Build the solution
+
+```powershell
+dotnet restore MicroShop.sln
+dotnet build MicroShop.sln --no-restore
+```
+
+### Run APIs from Rider or the CLI
 
 To run the APIs from Rider or `dotnet run` against the Docker infrastructure,
 stop the Docker APIs first to avoid two Outbox processors sharing the same database:
@@ -176,31 +181,47 @@ The launch profiles select `Development`, Catalog port `5101`, and Inventory por
 `http://localhost:5102/swagger`. Stop the local processes before returning to
 containerized execution with `docker compose start catalog-api inventory-api`.
 
+### Stop or reset the environment
+
 Stop containers while retaining named volumes:
 
 ```powershell
 docker compose down
 ```
 
-Stop containers and delete all MicroShop data:
+Reset the environment, permanently deleting all project data stored in named volumes:
 
 ```powershell
 docker compose down -v
 ```
 
+PostgreSQL uses `postgres:18-alpine` with volumes mounted at `/var/lib/postgresql`. Existing clusters from another PostgreSQL major version require a planned upgrade; changing the image tag does not migrate their data.
+
+## Configuration
+
+Local API settings are defined in each service's `appsettings.json`. Docker Compose overrides the same settings through `ConnectionStrings__Database` and `Kafka__BootstrapServers`.
+
+| Dependency | Docker API address | Host API address |
+| --- | --- | --- |
+| Catalog PostgreSQL | `catalog-db:5432`, database `catalog` | `localhost:5433`, database `catalog` |
+| Inventory PostgreSQL | `inventory-db:5432`, database `inventory` | `localhost:5434`, database `inventory` |
+| Kafka | `kafka:9092` | `localhost:9094` |
+
+Kafka exposes separate INTERNAL and EXTERNAL listeners because clients use broker addresses returned in metadata. Docker clients receive `kafka:9092`; host clients receive `localhost:9094`. The controller listener remains private on port `9093`. Both APIs use strongly typed `KafkaOptions`; address selection is configuration-driven.
+
 ## API documentation
 
-| Service | Swagger UI interactive API reference | OpenAPI JSON machine-readable API contract |
+| Service | Swagger UI | OpenAPI JSON |
 | --- | --- | --- |
-| Catalog | http://localhost:5001/swagger | http://localhost:5001/swagger/v1/swagger.json |
-| Inventory | http://localhost:5002/swagger | http://localhost:5002/swagger/v1/swagger.json |
+| Catalog | [API reference](http://localhost:5001/swagger) | [OpenAPI document](http://localhost:5001/swagger/v1/swagger.json) |
+| Inventory | [API reference](http://localhost:5002/swagger) | [OpenAPI document](http://localhost:5002/swagger/v1/swagger.json) |
 
 Both pages work in the normal Docker Compose environment, including `Production`;
 `/` redirects to `/swagger`. Swashbuckle generates one `v1` OpenAPI document from
 each service's Minimal API endpoints. Swagger UI includes **Try it out** for
 executing requests and serves its browser assets directly from the API.
 
-## Exercise the API
+## API usage
 
 Create a product:
 
@@ -214,12 +235,14 @@ $created = Invoke-RestMethod `
 $productId = $created.value
 ```
 
-Read the product and the asynchronously created inventory row:
+The response contains the new ID in `value`. Read the product and its inventory:
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:5001/api/products/$productId"
 Invoke-RestMethod -Uri "http://localhost:5002/api/inventory/$productId"
 ```
+
+Inventory creation is asynchronous. An immediate inventory lookup may return `404` until the integration event has been processed; retry the lookup shortly afterward.
 
 Change and re-read the quantity:
 
@@ -233,7 +256,9 @@ Invoke-RestMethod `
 Invoke-RestMethod -Uri "http://localhost:5002/api/inventory/$productId"
 ```
 
-## Inspect PostgreSQL
+## Operations
+
+### PostgreSQL
 
 ```powershell
 docker compose exec catalog-db psql -U postgres -d catalog -c "select * from products;"
@@ -242,9 +267,9 @@ docker compose exec inventory-db psql -U postgres -d inventory -c "select * from
 docker compose exec inventory-db psql -U postgres -d inventory -c "select * from inventory_items;"
 ```
 
-## Learn with the Kafka CLI
+### Kafka CLI
 
-Compose uses the official `apache/kafka:4.1.1` image. Its Kafka scripts are under `/opt/kafka/bin`, so these commands execute inside that exact container image.
+Compose uses `apache/kafka:4.1.1`. The following commands run the bundled Kafka utilities inside the broker container.
 
 List topics:
 
@@ -272,11 +297,13 @@ docker compose exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-se
 
 The `CURRENT-OFFSET`, `LOG-END-OFFSET`, and `LAG` columns show what the group has committed and how far it is behind each partition.
 
-## Prometheus and Grafana
+## Observability
+
+Serilog provides centralized HTTP request logs, MediatR request execution logs, and structured Kafka/Outbox/Inbox diagnostics. Consumer logs include topic, partition, offset, key, and event ID.
 
 Both APIs emit ASP.NET Core and .NET runtime metrics through OpenTelemetry at `/metrics`. Prometheus scrapes `catalog-api:8080` and `inventory-api:8080` every five seconds. Grafana is provisioned with Prometheus as its default data source and a small MicroShop dashboard showing HTTP request rate, average duration, and runtime heap size.
 
-Useful checks:
+Health and scrape checks:
 
 ```powershell
 Invoke-WebRequest http://localhost:5001/health
@@ -284,7 +311,7 @@ Invoke-WebRequest http://localhost:5002/health
 Invoke-WebRequest http://localhost:9090/api/v1/targets
 ```
 
-## Solution map
+## Repository structure
 
 ```text
 src/

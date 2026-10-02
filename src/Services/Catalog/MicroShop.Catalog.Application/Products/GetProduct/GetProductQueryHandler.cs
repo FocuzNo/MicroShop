@@ -1,4 +1,3 @@
-using MicroShop.BuildingBlocks.Application;
 using MicroShop.BuildingBlocks.Domain;
 using MicroShop.Catalog.Application.Abstractions.Data;
 using MicroShop.Catalog.Domain.Products;

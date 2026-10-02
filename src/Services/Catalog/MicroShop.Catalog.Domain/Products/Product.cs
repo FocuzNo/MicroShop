@@ -46,4 +46,31 @@ public sealed class Product : Entity
 
         return product;
     }
+
+    public Result Update(
+        string name,
+        decimal price)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return Result.Failure(ProductErrors.NameRequired);
+        }
+
+        var normalizedName = name.Trim();
+
+        if (normalizedName.Length > 200)
+        {
+            return Result.Failure(ProductErrors.NameTooLong);
+        }
+
+        if (price < 0)
+        {
+            return Result.Failure(ProductErrors.InvalidPrice);
+        }
+
+        Name = normalizedName;
+        Price = price;
+
+        return Result.Success();
+    }
 }

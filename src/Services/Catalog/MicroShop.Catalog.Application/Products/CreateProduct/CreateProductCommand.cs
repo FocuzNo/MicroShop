@@ -1,5 +1,3 @@
-using MicroShop.BuildingBlocks.Application;
-
 namespace MicroShop.Catalog.Application.Products.CreateProduct;
 
 public sealed record CreateProductCommand(

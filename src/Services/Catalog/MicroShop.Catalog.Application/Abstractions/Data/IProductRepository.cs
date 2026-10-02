@@ -9,4 +9,6 @@ public interface IProductRepository
         CancellationToken cancellationToken);
 
     void Add(Product product);
+
+    void Update(Product product);
 }

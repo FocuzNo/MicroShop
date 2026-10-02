@@ -21,4 +21,9 @@ internal sealed class ProductRepository(CatalogDbContext dbContext) : IProductRe
     {
         dbContext.Products.Add(product);
     }
+
+    public void Update(Product product)
+    {
+        dbContext.Products.Update(product);
+    }
 }

@@ -12,6 +12,10 @@ public static class InventoryErrors
         "Inventory.QuantityCannotBeNegative",
         "Inventory quantity cannot be negative.");
 
+    public static readonly Error QuantityMustBePositive = Error.Validation(
+        "Inventory.QuantityMustBePositive",
+        "Inventory quantity increase must be greater than zero.");
+
     public static Error NotFound(Guid productId) => Error.NotFound(
         "Inventory.NotFound",
         $"Inventory for product '{productId}' was not found.");
@@ -20,3 +24,4 @@ public static class InventoryErrors
         "Inventory.AlreadyExists",
         $"Inventory for product '{productId}' already exists.");
 }
+

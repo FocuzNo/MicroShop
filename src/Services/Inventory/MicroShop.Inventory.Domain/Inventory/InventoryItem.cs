@@ -65,4 +65,26 @@ public sealed class InventoryItem : Entity
 
         return Result.Success();
     }
+
+    public Result Decrease(
+        int quantity,
+        DateTime updatedAtUtc)
+    {
+        if (quantity <= 0)
+        {
+            return Result.Failure(
+                InventoryErrors.QuantityMustBePositive);
+        }
+
+        if (quantity > Quantity)
+        {
+            return Result.Failure(
+                InventoryErrors.InsufficientQuantity);
+        }
+
+        Quantity -= quantity;
+        UpdatedAtUtc = updatedAtUtc;
+
+        return Result.Success();
+    }
 }

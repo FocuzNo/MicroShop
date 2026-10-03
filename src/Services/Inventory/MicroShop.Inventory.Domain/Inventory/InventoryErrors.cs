@@ -23,5 +23,9 @@ public static class InventoryErrors
     public static Error AlreadyExists(Guid productId) => Error.Conflict(
         "Inventory.AlreadyExists",
         $"Inventory for product '{productId}' already exists.");
+
+    public static readonly Error InsufficientQuantity = Error.Conflict(
+        "Inventory.InsufficientQuantity",
+        "There is not enough inventory to decrease the requested quantity.");
 }
 
